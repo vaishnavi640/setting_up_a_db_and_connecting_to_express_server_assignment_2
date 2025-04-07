@@ -1,28 +1,42 @@
 const express = require('express');
-const { resolve } = require('path');
+const app = express();
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
+const User = require('./schema');
+const PORT = process.env.PORT || 5000;
 
-// Load environment variables from .env file
+
+app.use(express.json()); 
 dotenv.config();
 
-const app = express();
-const port = process.env.PORT || 3010;
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => {
+    console.log("Connected to MongoDB database");
+  })
+  .catch(err => {
+    console.error("Error connecting to database:", err);
+  });
 
-app.use(express.static('static'));
 
-app.get('/', (req, res) => {
-  res.sendFile(resolve(__dirname, 'pages/index.html'));
+app.post('/api/users', async (req, res) => {
+  try {
+    const userData = req.body;
+
+    const newUser = new User(userData);
+    await newUser.save();
+
+    res.status(201).json({ message: 'User created successfully' });
+  } catch (error) {
+    if (error.name === 'ValidationError') {
+      res
+        .status(400)
+        .json({ message: 'Validation error', details: error.message });
+    } else {
+      res.status(500).json({ message: 'Server error', details: error.message });
+    }
+  }
 });
 
-// MongoDB connection
-mongoose.connect(process.env.MONGO_URI, {
-    // useNewUrlParser: true,
-    // useUnifiedTopology: true,
-})
-.then(() => console.log('Connected to database'))
-.catch((error) => console.error(`Error connecting to database: ${error}`));
-
-app.listen(port, () => {
-  console.log(`Server is running at http://localhost:${port}`);
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
